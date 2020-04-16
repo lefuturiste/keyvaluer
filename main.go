@@ -128,13 +128,10 @@ func handleClient(conn net.Conn) {
 					fmt.Println("New cmd: ", components)
 					var name string = strings.ToUpper(components[0])
 					switch name {
-					case "SET":
-						state[components[1]] = components[2]
-						success(conn)
-						conn.Write([]byte(CRLF))
 					case "AUTH":
 						success(conn)
 						conn.Write([]byte(CRLF))
+
 					case "GET":
 						if val, ok := state[components[1]]; ok {
 							conn.Write([]byte("$" + strconv.Itoa(len(val))))
@@ -145,6 +142,29 @@ func handleClient(conn net.Conn) {
 							conn.Write([]byte("$-1"))
 							conn.Write([]byte(CRLF))
 						}
+
+					case "EXISTS":
+						if _, ok := state[components[1]]; ok {
+							conn.Write([]byte(":1"))
+						} else {
+							conn.Write([]byte(":0"))
+						}
+						conn.Write([]byte(CRLF))
+
+					case "APPEND":
+						if _, ok := state[components[1]]; ok {
+							state[components[1]] += components[2]
+						} else {
+							state[components[1]] = components[2]
+						}
+						conn.Write([]byte(":" + strconv.Itoa(len(state[components[1]]))))
+						conn.Write([]byte(CRLF))
+
+					case "SET":
+						state[components[1]] = components[2]
+						success(conn)
+						conn.Write([]byte(CRLF))
+
 					case "DEL":
 						if _, ok := state[components[1]]; ok {
 							delete(state, components[1])
@@ -154,6 +174,32 @@ func handleClient(conn net.Conn) {
 							conn.Write([]byte(":0"))
 							conn.Write([]byte(CRLF))
 						}
+
+					case "FLUSHALL":
+						state = make(map[string]string)
+						success(conn)
+						conn.Write([]byte(CRLF))
+
+					case "KEYS":
+						// TODO: Implement keys command with pattern
+						conn.Write([]byte("*" + strconv.Itoa(len(state))))
+						conn.Write([]byte(CRLF))
+						for key := range state {
+							conn.Write([]byte("$" + strconv.Itoa(len(key))))
+							conn.Write([]byte(CRLF))
+							conn.Write([]byte(key))
+							conn.Write([]byte(CRLF))
+						}
+
+					case "DBSIZE":
+						conn.Write([]byte(":" + strconv.Itoa(len(state))))
+						conn.Write([]byte(CRLF))
+
+					case "COMMAND":
+						// TODO: Implement COMMAND
+						conn.Write([]byte("*0"))
+						conn.Write([]byte(CRLF))
+
 					case "PING":
 						conn.Write([]byte("+PONG"))
 						conn.Write([]byte(CRLF))
