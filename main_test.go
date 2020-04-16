@@ -99,4 +99,13 @@ func TestKey(t *testing.T) {
 	for _, value := range keysResult {
 		assert.Contains(t, keyArray, value)
 	}
+
+	client.FlushAll().Result()
+	client.Set("data", "0", -1)
+	client.Incr("data")
+	parsedValue, _ := client.Get("data").Result()
+	assert.Equal(t, parsedValue, "1")
+	client.IncrBy("data", 5)
+	parsedValue, _ = client.Get("data").Result()
+	assert.Equal(t, parsedValue, "6")
 }

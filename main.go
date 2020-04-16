@@ -192,6 +192,27 @@ func handleClient(conn net.Conn) {
 						success(conn)
 						conn.Write([]byte(CRLF))
 
+					case "INCR":
+						if value, ok := state[components[1]]; ok {
+							valueParsed, _ := strconv.ParseInt(value, 10, 64)
+							state[components[1]] = strconv.FormatInt(valueParsed+1, 10)
+						} else {
+							state[components[1]] = components[2]
+						}
+						conn.Write([]byte(":" + state[components[1]]))
+						conn.Write([]byte(CRLF))
+
+					case "INCRBY":
+						if value, ok := state[components[1]]; ok {
+							valueA, _ := strconv.ParseInt(components[2], 10, 64)
+							valueB, _ := strconv.ParseInt(value, 10, 64)
+							state[components[1]] = strconv.FormatInt(valueA+valueB, 10)
+						} else {
+							state[components[1]] = components[2]
+						}
+						conn.Write([]byte(":" + state[components[1]]))
+						conn.Write([]byte(CRLF))
+
 					case "DEL":
 						if _, ok := state[components[1]]; ok {
 							delete(state, components[1])
