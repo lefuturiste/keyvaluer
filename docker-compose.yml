@@ -1,0 +1,12 @@
+version: '3'
+services:
+  api:
+    image: lefuturiste/keyvaluer:latest
+    container_name: keyvaluer
+    restart: always
+    ports:
+      - "9245:6379"
+    environment:
+      - REQUIRED_PASS=root
+      - HOST=0.0.0.0
+      - PORT=6379
