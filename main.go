@@ -126,7 +126,8 @@ func handleClient(conn net.Conn) {
 				}
 				if len(components) > 0 {
 					fmt.Println("New cmd: ", components)
-					switch components[0] {
+					var name string = strings.ToUpper(components[0])
+					switch name {
 					case "SET":
 						state[components[1]] = components[2]
 						success(conn)
@@ -137,7 +138,8 @@ func handleClient(conn net.Conn) {
 					case "GET":
 						if val, ok := state[components[1]]; ok {
 							conn.Write([]byte("$" + strconv.Itoa(len(val))))
-							conn.Write([]byte(`"` + val + `"`))
+							conn.Write([]byte(CRLF))
+							conn.Write([]byte(val))
 							conn.Write([]byte(CRLF))
 						} else {
 							conn.Write([]byte("$-1"))
