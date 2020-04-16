@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -97,6 +98,8 @@ func error(conn net.Conn, msg string) {
 	conn.Write([]byte("-ERR " + msg))
 }
 
+type listMemberType []string
+
 func handleClient(conn net.Conn) {
 	fmt.Println("New client:", conn.RemoteAddr().String())
 	var message bool
@@ -146,7 +149,21 @@ func handleClient(conn net.Conn) {
 						name = ""
 					}
 
+					var removeTwin bool = true
+					if name == "RPUSH" {
+						name = "SADD"
+						removeTwin = false
+					}
+
 					switch name {
+					case "PING":
+						conn.Write([]byte("+PONG"))
+						conn.Write([]byte(CRLF))
+
+					case "SELECT":
+						success(conn)
+						conn.Write([]byte(CRLF))
+
 					case "AUTH":
 						fmt.Println("Password:", password)
 						if components[1] == password {
@@ -170,6 +187,11 @@ func handleClient(conn net.Conn) {
 							conn.Write([]byte(CRLF))
 						}
 
+					case "SET":
+						state[components[1]] = components[2]
+						success(conn)
+						conn.Write([]byte(CRLF))
+
 					case "EXISTS":
 						if _, ok := state[components[1]]; ok {
 							conn.Write([]byte(":1"))
@@ -178,6 +200,16 @@ func handleClient(conn net.Conn) {
 						}
 						conn.Write([]byte(CRLF))
 
+					case "DEL":
+						if _, ok := state[components[1]]; ok {
+							delete(state, components[1])
+							conn.Write([]byte(":1"))
+							conn.Write([]byte(CRLF))
+						} else {
+							conn.Write([]byte(":0"))
+							conn.Write([]byte(CRLF))
+						}
+
 					case "APPEND":
 						if _, ok := state[components[1]]; ok {
 							state[components[1]] += components[2]
@@ -185,11 +217,6 @@ func handleClient(conn net.Conn) {
 							state[components[1]] = components[2]
 						}
 						conn.Write([]byte(":" + strconv.Itoa(len(state[components[1]]))))
-						conn.Write([]byte(CRLF))
-
-					case "SET":
-						state[components[1]] = components[2]
-						success(conn)
 						conn.Write([]byte(CRLF))
 
 					case "INCR":
@@ -213,19 +240,177 @@ func handleClient(conn net.Conn) {
 						conn.Write([]byte(":" + state[components[1]]))
 						conn.Write([]byte(CRLF))
 
-					case "DEL":
-						if _, ok := state[components[1]]; ok {
-							delete(state, components[1])
-							conn.Write([]byte(":1"))
-							conn.Write([]byte(CRLF))
+					/**
+					 * Will push an element into a set
+					 */
+					case "SADD":
+						var list []string
+						if value, ok := state[components[1]]; ok {
+							err = json.Unmarshal([]byte(value), &list)
+							if err != nil {
+								fmt.Println("Fatal JSON decoding err")
+							}
 						} else {
-							conn.Write([]byte(":0"))
+							list = make([]string, 0)
+						}
+
+						// append the members to the list
+						var appended int = 0
+						for key, value := range components {
+							if key != 0 && key != 1 {
+								// check if the value to append is already in the list
+								var notAppended bool = true
+								for _, v := range list {
+									if v == value {
+										notAppended = false
+									}
+								}
+								if (notAppended && removeTwin) || (!removeTwin) {
+									list = append(list, value)
+									appended++
+								}
+							}
+						}
+						// encode the array as JSON
+						jsonEncoding, _ := json.Marshal(list)
+						state[components[1]] = string(jsonEncoding)
+						conn.Write([]byte(":" + strconv.FormatInt(int64(appended), 10)))
+						conn.Write([]byte(CRLF))
+
+					/**
+					 * Will return an array of string
+					 * Will return all the items of a set
+					 */
+					case "SMEMBERS":
+						var list []string
+						if value, ok := state[components[1]]; ok {
+							err = json.Unmarshal([]byte(value), &list)
+							if err != nil {
+								fmt.Println("Fatal JSON decoding err")
+							}
+							conn.Write([]byte("*" + strconv.Itoa(len(list))))
+							conn.Write([]byte(CRLF))
+							for _, val := range list {
+								conn.Write([]byte("$" + strconv.Itoa(len(val))))
+								conn.Write([]byte(CRLF))
+								conn.Write([]byte(val))
+								conn.Write([]byte(CRLF))
+							}
+						} else {
+							conn.Write([]byte("*0"))
 							conn.Write([]byte(CRLF))
 						}
+
+					/**
+					 * Will return a boolean
+					 * True if the key belongs to the set
+					 * False if the key don't belongs to the set
+					 */
+					case "SISMEMBER":
+						var list []string
+						if value, ok := state[components[1]]; ok {
+							err = json.Unmarshal([]byte(value), &list)
+							if err != nil {
+								fmt.Println("Fatal JSON decoding err")
+							} else {
+								var exists bool = false
+								for _, val := range list {
+									if val == components[2] {
+										exists = true
+									}
+								}
+								if exists {
+									conn.Write([]byte(":1"))
+								} else {
+									conn.Write([]byte(":0"))
+								}
+							}
+						} else {
+							conn.Write([]byte(":0"))
+						}
+						conn.Write([]byte(CRLF))
+
+					/**
+					 * Will remove and return the first element of a set
+					 */
+					case "LPOP":
+						var list []string
+						if value, ok := state[components[1]]; ok {
+							err = json.Unmarshal([]byte(value), &list)
+							if err != nil {
+								fmt.Println("Fatal JSON decoding err")
+							} else {
+								var isFirstNull bool = true
+								var first string
+								if len(list) > 0 {
+									isFirstNull = false
+									first = list[0]
+									list = list[1:]
+								}
+								if len(list) == 0 {
+									// delete directly the array if empty at this point
+									delete(state, components[1])
+								} else {
+									jsonEncoding, _ := json.Marshal(list)
+									state[components[1]] = string(jsonEncoding)
+								}
+								if isFirstNull {
+									conn.Write([]byte("$-1"))
+								} else {
+									conn.Write([]byte("$" + strconv.Itoa(len(first))))
+									conn.Write([]byte(CRLF))
+									conn.Write([]byte(first))
+								}
+							}
+						} else {
+							conn.Write([]byte("$-1"))
+						}
+						conn.Write([]byte(CRLF))
+
+					/**
+					 * Will remove a value from a set
+					 */
+					case "SREM":
+						var list []string
+						if value, ok := state[components[1]]; ok {
+							err = json.Unmarshal([]byte(value), &list)
+							if err != nil {
+								fmt.Println("Fatal JSON decoding err")
+							} else {
+								var newList []string
+								var removedCount int = 0
+								for key, val := range list {
+									if val != components[2] {
+										newList[key] = val
+									} else {
+										removedCount++
+									}
+								}
+								if len(newList) == 0 {
+									// delete directly the array if empty at this point
+									delete(state, components[1])
+								} else {
+									jsonEncoding, _ := json.Marshal(newList)
+									state[components[1]] = string(jsonEncoding)
+								}
+								conn.Write([]byte(":" + strconv.Itoa(removedCount)))
+							}
+						} else {
+							conn.Write([]byte("$-1"))
+						}
+						conn.Write([]byte(CRLF))
 
 					case "FLUSHALL":
 						state = make(map[string]string)
 						success(conn)
+						conn.Write([]byte(CRLF))
+
+					case "EXPIRE":
+						if _, ok := state[components[1]]; ok {
+							conn.Write([]byte(":1"))
+						} else {
+							conn.Write([]byte(":0"))
+						}
 						conn.Write([]byte(CRLF))
 
 					case "KEYS":
@@ -246,10 +431,6 @@ func handleClient(conn net.Conn) {
 					case "COMMAND":
 						// TODO: Implement COMMAND
 						conn.Write([]byte("*0"))
-						conn.Write([]byte(CRLF))
-
-					case "PING":
-						conn.Write([]byte("+PONG"))
 						conn.Write([]byte(CRLF))
 
 					case "QUIT":
