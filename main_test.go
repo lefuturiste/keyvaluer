@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,8 @@ func getClient(password string) *redis.Client {
 
 func TestPing(t *testing.T) {
 	startServer(TEST_PORT, "")
+
+	time.Sleep(200 * time.Millisecond)
 
 	client := getClient("")
 	pong, err := client.Ping().Result()

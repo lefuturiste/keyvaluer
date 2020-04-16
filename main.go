@@ -13,7 +13,6 @@ const (
 	CONN_HOST = "localhost"
 	CONN_PORT = "6379"
 	CRLF      = "\r\n"
-	VERSION   = "v0.1"
 )
 
 var state map[string]string

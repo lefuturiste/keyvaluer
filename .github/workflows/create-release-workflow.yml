@@ -1,7 +1,6 @@
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [master]
 
 name: Create release and upload release asset
 
