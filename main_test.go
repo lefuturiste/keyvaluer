@@ -2,29 +2,58 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/stretchr/testify/assert"
 )
 
-func getClient() *redis.Client {
+const (
+	TEST_PORT = "4545"
+)
+
+func getClient(password string) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     "localhost:4545",
-		Password: "",
+		Addr:     "localhost:" + TEST_PORT,
+		Password: password,
 		DB:       0,
 	})
 }
 
 func TestPing(t *testing.T) {
-	client := getClient()
+	startServer(TEST_PORT, "")
+
+	client := getClient("")
 	pong, err := client.Ping().Result()
 	assert.Equal(t, "PONG", pong)
 	assert.Nil(t, err)
 }
 
+func TestAuth(t *testing.T) {
+	os.Setenv("REQUIRED_PASS", "root")
+	client := getClient("")
+
+	_, err := client.Ping().Result()
+	assert.Contains(t, err, "NOAUTH")
+
+	client = getClient("dd")
+
+	pong, err := client.Ping().Result()
+	assert.Equal(t, "", pong)
+	assert.Equal(t, err.Error(), "ERR invalid password")
+
+	client = getClient("root")
+	pong, err = client.Ping().Result()
+	assert.Equal(t, "PONG", pong)
+	assert.Nil(t, err)
+
+	os.Setenv("REQUIRED_PASS", "")
+}
+
 func TestKey(t *testing.T) {
-	client := getClient()
+
+	client := getClient("")
 	var data map[string]string = make(map[string]string)
 	data["hello"] = "world"
 	data["foo"] = "bar"
@@ -64,6 +93,7 @@ func TestKey(t *testing.T) {
 	var keyArray []string = []string{"data", "data_1", "data_2", "data_3"}
 
 	assert.Equal(t, 4, len(keysResult))
-	assert.Equal(t, keyArray, keysResult)
-
+	for _, value := range keysResult {
+		assert.Contains(t, keyArray, value)
+	}
 }

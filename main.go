@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -15,6 +16,15 @@ const (
 )
 
 var state map[string]string
+var password string
+
+func startServer(port string, pass string) {
+	if port != "0" && port != "" {
+		os.Setenv("PORT", port)
+	}
+	os.Setenv("REQUIRED_PASS", pass)
+	go main()
+}
 
 func main() {
 	var host string = os.Getenv("HOST")
@@ -93,6 +103,8 @@ func handleClient(conn net.Conn) {
 	var input string
 	var componentIndex int
 	var components map[int]string
+	var authenticated bool
+	var password string = os.Getenv("REQUIRED_PASS")
 	if state == nil {
 		state = make(map[string]string)
 	}
@@ -127,9 +139,24 @@ func handleClient(conn net.Conn) {
 				if len(components) > 0 {
 					fmt.Println("New cmd: ", components)
 					var name string = strings.ToUpper(components[0])
+
+					if password != "" && name != "AUTH" && name != "QUIT" && !authenticated {
+						conn.Write([]byte("-NOAUTH Authentication required."))
+						conn.Write([]byte(CRLF))
+						name = ""
+					}
+
 					switch name {
 					case "AUTH":
-						success(conn)
+						fmt.Println("Password:", password)
+						if components[1] == password {
+							authenticated = true
+							success(conn)
+						} else {
+							authenticated = false
+							time.Sleep(1 * time.Second)
+							conn.Write([]byte("-ERR invalid password"))
+						}
 						conn.Write([]byte(CRLF))
 
 					case "GET":
@@ -203,6 +230,12 @@ func handleClient(conn net.Conn) {
 					case "PING":
 						conn.Write([]byte("+PONG"))
 						conn.Write([]byte(CRLF))
+
+					case "QUIT":
+						success(conn)
+						conn.Write([]byte(CRLF))
+						conn.Close()
+						return
 					}
 					// var output string = ""
 					// for _, value := range commandParsed {
