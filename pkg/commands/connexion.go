@@ -5,16 +5,25 @@ import (
 	"time"
 )
 
-// Ping -
+// Ping - PING [message]
 func Ping(cmd CmdInterface) {
-	cmd.Conn.Write([]byte("+PONG"))
-	endLine(cmd)
+	if len(cmd.Parts) == 1 {
+		cmd.Conn.Write([]byte("+PONG"))
+		endLine(cmd)
+	} else {
+		returnString(cmd, cmd.Parts[1])
+	}
 }
 
 // Quit -
 func Quit(cmd CmdInterface) {
 	returnSuccess(cmd)
 	cmd.Conn.Close()
+}
+
+// Echo - ECHO message
+func Echo(cmd CmdInterface) {
+	returnString(cmd, cmd.Parts[1])
 }
 
 // Command -

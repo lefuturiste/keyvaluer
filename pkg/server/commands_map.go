@@ -26,4 +26,5 @@ var commandMap = map[string]interface{}{
 	"RPUSH":     commands.RPush,
 	"SELECT":    commands.Select,
 	"EXPIRE":    commands.Expire,
+	"ECHO":      commands.Echo,
 }
