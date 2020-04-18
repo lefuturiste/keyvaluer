@@ -5,26 +5,37 @@ import (
 )
 
 var commandMap = map[string]interface{}{
-	"PING":      commands.Ping,
-	"GET":       commands.Get,
-	"SET":       commands.Set,
-	"DEL":       commands.Del,
-	"EXISTS":    commands.Exists,
-	"APPEND":    commands.Append,
-	"INCR":      commands.Incr,
-	"INCRBY":    commands.IncrBy,
-	"KEYS":      commands.Keys,
-	"DBSIZE":    commands.DbSize,
-	"FLUSHALL":  commands.FlushAll,
-	"QUIT":      commands.Quit,
-	"COMMAND":   commands.Command,
+	// connexion
+	"PING":   commands.Ping,
+	"QUIT":   commands.Quit,
+	"ECHO":   commands.Echo,
+	"SELECT": commands.Select,
+
+	// strings
+	"GET":    commands.Get,
+	"SET":    commands.Set,
+	"APPEND": commands.Append,
+	"INCR":   commands.Incr,
+	"INCRBY": commands.IncrBy,
+
+	// keys
+	"EXISTS": commands.Exists,
+	"KEYS":   commands.Keys,
+	"DEL":    commands.Del,
+	"EXPIRE": commands.Expire,
+
+	// server
+	"DBSIZE":   commands.DbSize,
+	"FLUSHALL": commands.FlushAll,
+	"COMMAND":  commands.Command,
+
+	// sets
 	"SADD":      commands.SAdd,
 	"SISMEMBER": commands.SIsMember,
 	"SMEMBERS":  commands.SMembers,
 	"SREM":      commands.SRem,
-	"LPOP":      commands.LPop,
-	"RPUSH":     commands.RPush,
-	"SELECT":    commands.Select,
-	"EXPIRE":    commands.Expire,
-	"ECHO":      commands.Echo,
+
+	// lists
+	"LPOP":  commands.LPop,
+	"RPUSH": commands.RPush,
 }
