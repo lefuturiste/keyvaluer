@@ -37,5 +37,6 @@ var commandMap = map[string]interface{}{
 
 	// lists
 	"LPOP":  commands.LPop,
+	"LPUSH": commands.LPush,
 	"RPUSH": commands.RPush,
 }
