@@ -52,7 +52,9 @@ func handleClient(conn net.Conn) {
 					components = parseCommand(input[0 : len(input)-1])
 				}
 				if len(components) > 0 {
-					fmt.Println("New cmd: ", components)
+					if os.Getenv("DEBUG") != "" {
+						fmt.Println("New cmd: ", components)
+					}
 					var name string = strings.ToUpper(components[0])
 
 					if password != "" && name != "AUTH" && name != "QUIT" && !authenticated {
