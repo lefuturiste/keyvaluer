@@ -1,19 +1,19 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"strings"
 
 	"github.com/lefuturiste/keyvaluer/pkg/commands"
+	log "github.com/sirupsen/logrus"
 )
 
 var state map[string]string
 var password string
 
 func handleClient(conn net.Conn) {
-	fmt.Println("New client:", conn.RemoteAddr().String())
+	log.Debug("New client: ", conn.RemoteAddr().String())
 	var message bool
 	var input string
 	var componentIndex int
@@ -52,9 +52,7 @@ func handleClient(conn net.Conn) {
 					components = parseCommand(input[0 : len(input)-1])
 				}
 				if len(components) > 0 {
-					if os.Getenv("DEBUG") != "" {
-						fmt.Println("New cmd: ", components)
-					}
+					log.Debug("New cmd: ", components)
 					var name string = strings.ToUpper(components[0])
 
 					if password != "" && name != "AUTH" && name != "QUIT" && !authenticated {

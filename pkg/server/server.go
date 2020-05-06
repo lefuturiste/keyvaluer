@@ -1,9 +1,11 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"os"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // StartAsync - Start the TCP server with a go routine
@@ -12,7 +14,31 @@ func StartAsync(port string, pass string) {
 		os.Setenv("PORT", port)
 	}
 	os.Setenv("REQUIRED_PASS", pass)
+	os.Setenv("LOG_LEVEL", "debug")
 	go serverLoop()
+}
+
+func initLogging() {
+	var strLogLevel = os.Getenv("LOG_LEVEL")
+	var logLevel log.Level
+	if strLogLevel == "" || strLogLevel == "info" {
+		logLevel = log.InfoLevel
+	}
+	switch strings.ToLower(strLogLevel) {
+	case "trace":
+		logLevel = log.TraceLevel
+	case "debug":
+		logLevel = log.DebugLevel
+	case "warn":
+		logLevel = log.WarnLevel
+	case "error":
+		logLevel = log.ErrorLevel
+	case "fatal":
+		logLevel = log.FatalLevel
+	case "panic":
+		logLevel = log.PanicLevel
+	}
+	log.SetLevel(logLevel)
 }
 
 // Start - Start the TCP server
@@ -21,6 +47,7 @@ func Start() {
 }
 
 func serverLoop() {
+	initLogging()
 	var host string = os.Getenv("HOST")
 	var port string = os.Getenv("PORT")
 	if host == "" {
@@ -31,15 +58,15 @@ func serverLoop() {
 	}
 	l, err := net.Listen("tcp", host+":"+port)
 	if err != nil {
-		fmt.Println("Error listening:", err.Error())
+		log.Error("Error listening: ", err.Error())
 		os.Exit(1)
 	}
 	defer l.Close()
-	fmt.Println("Listening on " + host + ":" + port)
+	log.Info("Listening on " + host + ":" + port)
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			log.Error("Error accepting connexion: ", err.Error())
 			os.Exit(1)
 		}
 		go handleClient(conn)
